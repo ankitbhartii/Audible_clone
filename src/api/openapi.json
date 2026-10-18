@@ -1,0 +1,352 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Audible Web Clone Service Layer API",
+    "version": "1.0.0",
+    "description": "Standardized OpenAPI 3.0 specification for the Audible Web Clone, reverse-engineered from Audible Service Layer (ASL 1.0) and Amazon Whispersync."
+  },
+  "servers": [
+    {
+      "url": "https://api.audible.com",
+      "description": "Audible ASL Production Endpoint (US)"
+    },
+    {
+      "url": "/api",
+      "description": "Audible Web Clone Local Mock & Proxy Service"
+    }
+  ],
+  "paths": {
+    "/1.0/catalog/products": {
+      "get": {
+        "summary": "Search & discover audiobook catalog",
+        "operationId": "searchCatalog",
+        "parameters": [
+          { "name": "keywords", "in": "query", "schema": { "type": "string" }, "description": "Free-text keywords query" },
+          { "name": "category_id", "in": "query", "schema": { "type": "string" }, "description": "Category taxonomy id" },
+          { "name": "products_sort_by", "in": "query", "schema": { "type": "string", "enum": ["Relevance", "BestSellers", "AvgRating", "-ReleaseDate", "RuntimeLength", "TitleAZ"], "default": "Relevance" } },
+          { "name": "num_results", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalog search results list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/1.0/catalog/products/{asin}": {
+      "get": {
+        "summary": "Get full audiobook product metadata",
+        "operationId": "getAudiobook",
+        "parameters": [
+          { "name": "asin", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Amazon/Audible Standard Identification Number" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed audiobook metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Audiobook"
+                }
+              }
+            }
+          },
+          "404": { "description": "Product not found" }
+        }
+      }
+    },
+    "/1.0/catalog/categories": {
+      "get": {
+        "summary": "Retrieve genre & category taxonomy tree",
+        "operationId": "getCategories",
+        "responses": {
+          "200": {
+            "description": "Hierarchical category ladder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Category" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/1.0/library": {
+      "get": {
+        "summary": "Get user library items",
+        "operationId": "getUserLibrary",
+        "responses": {
+          "200": {
+            "description": "Array of owned audiobooks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/LibraryItem" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add audiobook to user library",
+        "operationId": "addToLibrary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["asin"],
+                "properties": { "asin": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item successfully added to library",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LibraryItem" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/1.0/library/{asin}": {
+      "delete": {
+        "summary": "Remove audiobook from user library",
+        "operationId": "removeFromLibrary",
+        "parameters": [
+          { "name": "asin", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Item removed" }
+        }
+      }
+    },
+    "/1.0/annotations/lastpositions": {
+      "get": {
+        "summary": "Fetch Whispersync listening position",
+        "operationId": "getListeningProgress",
+        "parameters": [
+          { "name": "asins", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whispersync listening progress",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListeningProgress" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Whispersync listening position",
+        "operationId": "saveListeningProgress",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["asin", "positionMs", "chapterIndex"],
+                "properties": {
+                  "asin": { "type": "string" },
+                  "positionMs": { "type": "integer" },
+                  "chapterIndex": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated listening progress",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListeningProgress" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/1.0/annotations/bookmarks": {
+      "get": {
+        "summary": "Get user bookmarks for an audiobook",
+        "operationId": "getBookmarks",
+        "parameters": [
+          { "name": "asin", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of bookmarks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Bookmark" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create new bookmark and note",
+        "operationId": "addBookmark",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["asin", "positionMs", "chapterTitle", "note"],
+                "properties": {
+                  "asin": { "type": "string" },
+                  "positionMs": { "type": "integer" },
+                  "chapterTitle": { "type": "string" },
+                  "note": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bookmark created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Bookmark" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Author": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "asin": { "type": "string" },
+          "name": { "type": "string" },
+          "bio": { "type": "string" }
+        }
+      },
+      "Narrator": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "asin": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      },
+      "Chapter": {
+        "type": "object",
+        "required": ["title", "start_offset_ms", "start_offset_sec", "length_ms"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "start_offset_ms": { "type": "integer" },
+          "start_offset_sec": { "type": "number" },
+          "length_ms": { "type": "integer" }
+        }
+      },
+      "Audiobook": {
+        "type": "object",
+        "required": ["asin", "title", "authors", "narrators", "runtime_length_min", "sample_url"],
+        "properties": {
+          "asin": { "type": "string" },
+          "title": { "type": "string" },
+          "subtitle": { "type": "string" },
+          "authors": { "type": "array", "items": { "$ref": "#/components/schemas/Author" } },
+          "narrators": { "type": "array", "items": { "$ref": "#/components/schemas/Narrator" } },
+          "publisher_name": { "type": "string" },
+          "release_date": { "type": "string" },
+          "runtime_length_min": { "type": "integer" },
+          "publisher_summary": { "type": "string" },
+          "product_images": { "type": "object" },
+          "sample_url": { "type": "string" },
+          "chapters": { "type": "array", "items": { "$ref": "#/components/schemas/Chapter" } }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "parent_id": { "type": "string", "nullable": true },
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } }
+        }
+      },
+      "LibraryItem": {
+        "type": "object",
+        "required": ["asin", "purchase_date", "status", "product"],
+        "properties": {
+          "asin": { "type": "string" },
+          "purchase_date": { "type": "string" },
+          "status": { "type": "string", "enum": ["Available", "Processing", "Archived"] },
+          "origin_type": { "type": "string" },
+          "is_downloaded": { "type": "boolean" },
+          "product": { "$ref": "#/components/schemas/Audiobook" }
+        }
+      },
+      "ListeningProgress": {
+        "type": "object",
+        "required": ["asin", "position_ms", "chapter_index", "last_updated"],
+        "properties": {
+          "asin": { "type": "string" },
+          "position_ms": { "type": "integer" },
+          "chapter_index": { "type": "integer" },
+          "last_updated": { "type": "string" },
+          "device_type": { "type": "string" },
+          "device_id": { "type": "string" }
+        }
+      },
+      "Bookmark": {
+        "type": "object",
+        "required": ["id", "asin", "position_ms", "chapter_title", "note", "created_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "asin": { "type": "string" },
+          "position_ms": { "type": "integer" },
+          "chapter_title": { "type": "string" },
+          "note": { "type": "string" },
+          "created_at": { "type": "string" }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "required": ["products", "total_results", "page", "limit"],
+        "properties": {
+          "products": { "type": "array", "items": { "$ref": "#/components/schemas/Audiobook" } },
+          "total_results": { "type": "integer" },
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" }
+        }
+      }
+    }
+  }
+}
